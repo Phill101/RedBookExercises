@@ -26,4 +26,10 @@ first.takeWhile(_ < 4).toList
 
 first.startsWith(second)
 
-//Stream.hasSubsequence(first, second)
+second.tails.toList.map(_.toList)
+
+first.hasSubsequence(second)
+
+second.scanRight(0)(_ + _).toList
+
+second.tailsViaFoldRight.toList.map(_.toList)

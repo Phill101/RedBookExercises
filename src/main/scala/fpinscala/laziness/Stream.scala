@@ -80,6 +80,29 @@ trait Stream[+A] {
     case _ => None
   }
 
+  def tails: Stream[Stream[A]] = unfold(this) {
+    case Empty => None
+    case s => Some(s, s drop 1)
+  }
+
+  def tailsViaFoldRight: Stream[Stream[A]] = scanRight(Stream.empty[A])(Stream.cons(_, _))
+
+  def hasSubsequence[B >: A](s: Stream[B]): Boolean =
+    tails exists (_ startsWith s)
+
+  /*
+    The function can't be implemented using `unfold`, since `unfold` generates elements of the `Stream` from left to right.
+    It can be implemented using `foldRight` though. The implementation is just a `foldRight` that keeps the accumulated value
+    and the stream of intermediate results, which we `cons` onto during each iteration. When writing folds,
+    it's common to have more state in the fold than is needed to compute the result. Here, we simply extract the accumulated list once finished.
+  */
+  def scanRight[B](z: B)(f: (A, => B) => B): Stream[B] =
+    foldRight((z, Stream(z)))((a, p0) => {
+      lazy val p1 = p0
+      val b2 = f(a, p1._1)
+      (b2, cons(b2, p1._2))
+    })._2
+
 }
 case object Empty extends Stream[Nothing]
 case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A]
@@ -130,13 +153,4 @@ object Stream {
     case _ => None
   }
 
-  // надо было подумать, прежде чем начинать писать. имплементация неверная
-  def hasSubsequence[A](sup: Stream[A], sub: Stream[A]): Boolean = {
-//    sup match {
-//      case c @ Cons(_, _) if c.startsWith(sub) => true
-//      case c @ Cons(_, t) => hasSubsequence(t(), sub)
-//      case _ => false
-//    }
-    ???
-  }
 }
