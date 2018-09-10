@@ -20,8 +20,6 @@ val rng = Simple(42)
 //val (m3, r3) = RNG.nonNegativeInt(r2)
 //val (m4, r4) = RNG.nonNegativeInt(r3)
 
-RNG.
-
 //RNG.ints(3)(rng) // 16, -12, -34
 
 //RNG.map(RNG.int)(_.toString)(rng)

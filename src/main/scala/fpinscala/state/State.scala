@@ -1,5 +1,8 @@
 package fpinscala.state
 
+import fpinscala.state.RNG.{Rand, unit}
+import fpinscala.state.State.{modify, sequence}
+
 trait RNG {
   def nextInt: (Int, RNG) // Should generate a random `Int`. We'll later define other functions in terms of `nextInt`.
 }
@@ -67,17 +70,17 @@ object RNG {
     ((d1, d2, d3), r3)
   }
 
-//  def ints(count: Int)(rng: RNG): (List[Int], RNG) = {
-////    def go(remain: Int, r: RNG, acc: List[Int]): (List[Int], RNG) = {
-////      if (remain <= 0) (acc, r)
-////      else {
-////        val (i, nr) = r.nextInt
-////        go(remain - 1, nr, i :: acc)
-////      }
-////    }
-////    go(count, rng, Nil)
-//    sequence(List.fill(count)(int))(rng)
-//  }
+  def ints(count: Int): Rand[List[Int]] = {
+//    def go(remain: Int, r: RNG, acc: List[Int]): (List[Int], RNG) = {
+//      if (remain <= 0) (acc, r)
+//      else {
+//        val (i, nr) = r.nextInt
+//        go(remain - 1, nr, i :: acc)
+//      }
+//    }
+//    go(count, rng, Nil)
+    sequence(List.fill(count)(int))
+  }
 
   def map2[A,B,C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = {
 //    rng =>
@@ -85,17 +88,6 @@ object RNG {
 //      val (b, rng3) = rb(rng2)
 //      (f(a, b), rng3)
     flatMap(ra)(a => flatMap(rb)(b => unit(f(a, b))))
-  }
-
-  def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = {
-    // unit(Nil) is the same as: rand => (Nil, rand)
-    fs.foldRight[Rand[List[A]]](unit(Nil))((f, acc) => map2(f, acc)(_ :: _))
-//    rand =>
-//      val (l, nextRandom) = fs.foldLeft[(List[A], RNG)]((Nil, rand)) { case ((acc, crng), curRand) =>
-//        val (v, nr) = curRand(crng)
-//        (v :: acc, nr)
-//      }
-//      (l.reverse, nextRandom)
   }
 
   def flatMap[A,B](f: Rand[A])(g: A => Rand[B]): Rand[B] = f.flatMap(g)
@@ -135,5 +127,39 @@ case class Machine(locked: Boolean, candies: Int, coins: Int)
 object State {
   type Rand[A] = State[RNG, A]
   def unit[S, A](a: A): State[S, A] = State(rng => (a, rng))
-  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = ???
+
+  def sequence[S, A](l: List[State[S, A]]): State[S, List[A]] = {
+    l.reverse.foldLeft[State[S, List[A]]](unit(Nil))((acc, f) => f.map2(acc)(_ :: _))
+  }
+
+  def modify[S](f: S => S): State[S, Unit] = for {
+    s <- get // Gets the current state and assigns it to `s`.
+    _ <- set(f(s)) // Sets the new state to `f` applied to `s`.
+  } yield ()
+
+  def get[S]: State[S, S] = State(s => (s, s))
+
+  def set[S](s: S): State[S, Unit] = State(_ => ((), s))
+}
+
+object Candy {
+  import State.get
+  def update(i: Input)(m: Machine): Machine =
+    i match {
+      case Coin if m.locked && m.candies > 0 => m.copy(locked = false, coins = m.coins + 1)
+      case Turn if !m.locked => m.copy(locked = true, candies = m.candies - 1)
+      case _ => m
+    }
+
+  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = {
+    for {
+      // апдейт кушает инпут возвращает машинку, после этого мы хотим к результату сразу же применить modify.
+      // modify создаст новый стейт-экшн нужного типа(машинка).
+      // sequence соберёт много стейт экшенов в один единственный стейт экшен. получаю машинку, отдаю лист.
+      // в данном случае List[Unit], т.к. мы скомпозировали. Главное состояние передастся по цепочке flatMap!
+      _ <- sequence(inputs.map((modify[Machine] _).compose(update))) // (modify[Machine] _).compose(update) - Input => State[Machine, Unit]
+      s <- get // конечным будет возвращающий состояние стейт-экшн.
+    } yield (s.coins, s.candies)
+  }
+
 }
