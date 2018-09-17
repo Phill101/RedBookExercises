@@ -56,6 +56,32 @@ object Par {
     }.map(_.reverse)
   }
 
+  def parMap[A, B](ps: List[A])(f: A => B): Par[List[B]] = fork {
+    val fbs: List[Par[B]] = ps.map(asyncF(f))
+    sequence(fbs)
+  }
+
+  def parFilter[A](as: List[A])(f: A => Boolean): Par[List[A]] = fork {
+    val fas = as.map(asyncF {
+      a => Some(a).filter(f)
+    })
+    sequence(fas).map(_.flatten)
+  }
+
+  def parFold[A](as: IndexedSeq[A])(z: A)(f: (A, A) => A): Par[A] = fork {
+    if (as.size <= 1)
+      Par.unit(as.headOption getOrElse z)
+    else {
+      val (l, r) = as.splitAt(as.length / 2)
+      Par.map2(parFold(l)(z)(f), parFold(r)(z)(f))(f)
+    }
+  }
+
+  def parSum(as: IndexedSeq[Int]): Par[Int] = parFold(as)(0)(_ + _)
+  def parProduct(as: IndexedSeq[Int]): Par[Int] = parFold(as)(0)(_ * _)
+  def parMax(as: IndexedSeq[Int]): Par[Int] = parFold(as)(as.head)(_ max _)
+  def parMin(as: IndexedSeq[Int]): Par[Int] = parFold(as)(as.head)(_ min _)
+
   /* Gives us infix syntax for `Par`. */
   implicit class ParOps[A](p: Par[A]) {
     def map[B](f: A => B): Par[B] = Par.map(p)(f)
