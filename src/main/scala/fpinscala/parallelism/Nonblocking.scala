@@ -2,7 +2,9 @@ package fpinscala.parallelism
 
 import java.util.concurrent.{Callable, CountDownLatch, ExecutorService}
 import java.util.concurrent.atomic.AtomicReference
+
 import language.implicitConversions
+import scala.util.Try
 
 object Nonblocking {
 
@@ -101,6 +103,11 @@ object Nonblocking {
         val (l,r) = as.splitAt(as.length/2)
         map2(sequenceBalanced(l), sequenceBalanced(r))(_ ++ _)
       }
+    }
+
+    def parMap[A, B](ps: List[A])(f: A => B): Par[List[B]] = fork {
+      val fbs: List[Par[B]] = ps.map(asyncF(f))
+      sequence(fbs)
     }
 
     def sequence[A](as: List[Par[A]]): Par[List[A]] =

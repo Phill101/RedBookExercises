@@ -31,6 +31,13 @@ object Par {
       UnitFuture(f(af.get, bf.get)) // This implementation of `map2` does _not_ respect timeouts, and eagerly waits for the returned futures. This means that even if you have passed in "forked" arguments, using this map2 on them will make them wait. It simply passes the `ExecutorService` on to both `Par` values, waits for the results of the Futures `af` and `bf`, applies `f` to them, and wraps them in a `UnitFuture`. In order to respect timeouts, we'd need a new `Future` implementation that records the amount of time spent evaluating `af`, then subtracts that time from the available time allocated for evaluating `bf`.
     }
 
+  def map2ViaFlatMap[A,B,C](a: Par[A], b: Par[B])(f: (A,B) => C): Par[C] =
+    flatMap(a)(x =>
+      flatMap(b)(y =>
+        unit(f(x, y))
+      )
+    )
+
   def map[A,B](pa: Par[A])(f: A => B): Par[B] = 
     map2(pa, unit(()))((a,_) => f(a))
 
@@ -60,10 +67,23 @@ object Par {
   def delay[A](fa: => Par[A]): Par[A] = 
     es => fa(es)
 
+  def flatMap[A, B](a: Par[A])(fa: A => Par[B]): Par[B] =
+//    join(a.map(fa))
+    es => fa( run(es)(a).get )(es)
+
+  def choiceMap[K, V](key: Par[K])(choices: Map[K, Par[V]]): Par[V] =
+    flatMap(key)(choices)
+
+  def choiceN[A](n: Par[Int])(choices: List[Par[A]]): Par[A] =
+    flatMap(n)(choices)
+
   def choice[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] =
-    es => 
-      if (run(es)(cond).get) t(es) // Notice we are blocking on the result of `cond`.
-      else f(es)
+    flatMap(cond)(if (_) t else f)
+
+  def join[A](a: Par[Par[A]]): Par[A] =
+    flatMap(a)(x => x)
+//    es => run(es)(a).get()(es)
+
 
   def sequence[A](ps: List[Par[A]]): Par[List[A]] = {
     ps.foldLeft(unit(List.empty[A])) { (acc, v) =>
