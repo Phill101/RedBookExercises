@@ -3,7 +3,7 @@ package fpinscala.applicative
 import fpinscala.monads.Functor
 import fpinscala.state._
 import State._
-import StateUtil._ // defined at bottom of this file
+//import StateUtil._ // defined at bottom of this file
 import fpinscala.monoids._
 import language.higherKinds
 import language.implicitConversions

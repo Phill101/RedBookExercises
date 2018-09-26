@@ -16,4 +16,4 @@ Gen.listOfN(Gen.choose(1, 5)).sample.run(s)
 Gen.union(
   Gen.choose(1, 5),
   Gen.choose(100, 150)
-).sample.run(Simple(8))
+).sample.run(Simple(4))
