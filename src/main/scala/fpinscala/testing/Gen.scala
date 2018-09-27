@@ -28,15 +28,23 @@ case class Falsified(failure: FailedCase,
   val isFalsified: Boolean = true
 }
 
+case object Proved extends Result {
+  override def isFalsified: Boolean = false
+}
+
 case class Prop(run: (MaxSize, TestCases, RNG) => Result) {
-  def &&(p: Prop): Prop = Prop((maxSize, n, rng) => {
-    val r = this.run(maxSize, n, rng)
-    if (r.isFalsified) r else p.run(maxSize, n, rng)
+  def &&(p: Prop): Prop = Prop((max, n, rng) => {
+    run(max, n, rng) match {
+      case Passed | Proved => p.run(max, n, rng)
+      case x => x
+    }
   })
 
-  def ||(p: Prop): Prop = Prop((maxSize, n, rng) => {
-    val r = this.run(maxSize, n, rng)
-    if (r.isFalsified) p.run(maxSize, n, rng) else r
+  def ||(p: Prop): Prop = Prop((max, n, rng) => {
+    run(max, n, rng) match {
+      case Falsified(msg, _) => p.tag(msg).run(max, n, rng)
+      case x => x
+    }
   })
 
   def tag(msg: String) = Prop {
@@ -52,6 +60,20 @@ object Prop {
   type FailedCase = String
   type SuccessCount = Int
   type MaxSize = Int
+
+  def check(p: => Boolean): Prop = Prop { (_, _, _) =>
+    if (p) Proved else Falsified("()", 0)
+  }
+
+  def run(p: Prop,
+          maxSize: Int = 100,
+          testCases: Int = 100,
+          rng: RNG = RNG.Simple(System.currentTimeMillis)): Unit =
+    p.run(maxSize, testCases, rng) match {
+      case Falsified(msg, n) => println(s"! Falsified after $n passed tests:\n$msg")
+      case Passed => println(s"+ OK, passed $testCases tests.")
+      case Proved => println(s"+ OK, proved property.")
+    }
 
   def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop {
     (maxSize, n,rng) => randomStream(as)(rng).zipAll(Stream.from(0)).take(n).map {
@@ -103,7 +125,10 @@ object Gen {
   }
 
   def boolean: Gen[Boolean] = Gen(RNG.nonNegativeLessThan(2).map(i => if (i > 0) true else false))
+  def listOf[A](g: Gen[A]): Gen[List[A]] = listOfN(choose(0, 10), g)
+  def nonEmptyListOf[A](g: Gen[A]): Gen[List[A]] = listOfN(choose(1, 10), g)
   def listOfN[A](n: Int, g: Gen[A]): Gen[List[A]] = Gen(State.sequence(List.fill(n)(g.sample)))
+  def listOfN[A](n: Gen[Int], g: Gen[A]): Gen[List[A]] = n.flatMap(listOfN(_, g))
   def listOfN(size: Gen[Int]): Gen[List[Int]] = size.flatMap(a => listOfN(a, size) )
 
   def tuple2[A](g: Gen[A]): Gen[(A, A)] =
