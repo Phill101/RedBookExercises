@@ -125,11 +125,13 @@ object Gen {
   }
 
   def boolean: Gen[Boolean] = Gen(RNG.nonNegativeLessThan(2).map(i => if (i > 0) true else false))
+  def int: Gen[Int] = Gen(RNG.int)
+
   def listOf[A](g: Gen[A]): Gen[List[A]] = listOfN(choose(0, 10), g)
   def nonEmptyListOf[A](g: Gen[A]): Gen[List[A]] = listOfN(choose(1, 10), g)
   def listOfN[A](n: Int, g: Gen[A]): Gen[List[A]] = Gen(State.sequence(List.fill(n)(g.sample)))
   def listOfN[A](n: Gen[Int], g: Gen[A]): Gen[List[A]] = n.flatMap(listOfN(_, g))
-  def listOfN(size: Gen[Int]): Gen[List[Int]] = size.flatMap(a => listOfN(a, size) )
+  def listOfN(size: Gen[Int]): Gen[List[Int]] = size.flatMap(a => listOfN(a, size))
 
   def tuple2[A](g: Gen[A]): Gen[(A, A)] =
     Gen(for {
