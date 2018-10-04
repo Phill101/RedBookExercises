@@ -35,10 +35,8 @@ trait Parsers[Parser[+_]] { self =>
     r2 <- p2
   } yield (r1, r2)
 
-  def map2[A, B, C](p: Parser[A], p2: => Parser[B])(f: (A, B) => C): Parser[C] = for {
-    r1 <- p
-    r2 <- p2
-  } yield f(r1, r2)
+  def map2[A, B, C](p: Parser[A], p2: => Parser[B])(f: (A, B) => C): Parser[C] =
+    flatMap(p)(r1 => map(p2)(r2 => f(r1, r2)))
 
   def many1[A](p: Parser[A]): Parser[List[A]] =
     map2(p, many(p))(_ :: _)
@@ -46,32 +44,6 @@ trait Parsers[Parser[+_]] { self =>
   def label[A](msg: String)(p: Parser[A]): Parser[A]
   def scope[A](msg: String)(p: Parser[A]): Parser[A]
   def attempt[A](p: Parser[A]): Parser[A]
-
-//  def skipL[B](p: Parser[Any], p2: => Parser[B]): Parser[B] =
-//    map2(slice(p), p2)((_, b) => b)
-//
-//  def skipR[A](p: Parser[A], p2: => Parser[Any]): Parser[A] =
-//    map2(p, slice(p2))((a, _) => a)
-//
-
-//
-//  def token[A](p: Parser[A]): Parser[A] = attempt(p) <* whitespace
-
-//  def whitespace: Parser[String] = "\\s*".r
-//  def digits: Parser[String] = "\\d+".r
-//  def thru(s: String): Parser[String] = (".*?"+Pattern.quote(s)).r
-//  def quoted: Parser[String] = string("\"") *> thru("\"").map(_.dropRight(1))
-//  def escapedQuoted: Parser[String] = token(quoted label "string literal")
-//  def doubleString: Parser[String] = token("[-+]?([0-9]*\\.)?[0-9]+([eE][-+]?[0-9]+)?".r)
-//  def double: Parser[Double] = doubleString map (_.toDouble) label "double literal"
-//  def sep[A](p: Parser[A], p2: Parser[Any]): Parser[List[A]] = sep1(p,p2) or succeed(List())
-//  def sep1[A](p: Parser[A], p2: Parser[Any]): Parser[List[A]] = map2(p, many(p2 *> p))(_ :: _)
-//  def opL[A](p: Parser[A])(op: Parser[(A,A) => A]): Parser[A] =
-//    map2(p, many(op ** p))((h,t) => t.foldLeft(h)((a,b) => b._1(a,b._2)))
-//  def surround[A](start: Parser[Any], stop: Parser[Any])(p: => Parser[A]): Parser[A] = start *> p <* stop
-//  def eof: Parser[String] = regex("\\z".r).label("unexpected trailing characters")
-//  def root[A](p: Parser[A]): Parser[A] = p <* eof
-
 
   implicit class ParserOps[A](p: Parser[A]) {
     def |[B>:A](p2: Parser[B]): Parser[B] = self.or(p, p2)
@@ -83,6 +55,9 @@ trait Parsers[Parser[+_]] { self =>
     def map[B](f: A => B): Parser[B] = self.map(p)(f)
     def flatMap[B](f: A => Parser[B]): Parser[B] = self.flatMap(p)(f)
 
+    def map2[B, C](p2: Parser[B])(f: (A, B) => C): Parser[C] = self.map2(p, p2)(f)
+    def ~[B, C](p2: Parser[B])(f: (A, B) => C): Parser[C] = self.map2(p, p2)(f)
+
     def slice: Parser[String] = self.slice(p)
 
     def product[B](p2: Parser[B]): Parser[(A, B)] = self.product(p, p2)
@@ -90,14 +65,6 @@ trait Parsers[Parser[+_]] { self =>
 
     def label(msg: String): Parser[A] = ???
     def scope(msg: String): Parser[A] = ???
-//
-//    def *>[B](p2: => Parser[B]): Parser[B] = skipL(p, p2)
-//    def <*(p2: => Parser[Any]): Parser[A] = skipR(p, p2)
-//    def token: Parser[A] = self.token(p)
-//    def sep(separator: Parser[Any]) = self.sep(p, separator)
-//    def sep1(separator: Parser[Any])  = self.sep1(p, separator)
-//    def as[B](b: B): Parser[B] = self.map(self.slice(p))(_ => b)
-//    def opL(op: Parser[(A, A) => A]): Parser[A] = self.opL(p)(op)
   }
 
   object Laws {
