@@ -139,6 +139,13 @@ object Gen {
       s <- g.sample
     } yield (f, s))
 
+  def tuple3[A](g: Gen[A]): Gen[(A, A, A)] =
+    Gen(for {
+      f <- g.sample
+      s <- g.sample
+      t <- g.sample
+    } yield (f, s, t))
+
   def union[A](g1: Gen[A], g2: Gen[A]): Gen[A] = boolean.flatMap(if (_) g1 else g2)
 
   def weighted[A](g1: (Gen[A], Double), g2: (Gen[A], Double)): Gen[A] = {
