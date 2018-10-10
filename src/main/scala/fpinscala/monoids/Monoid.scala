@@ -118,8 +118,10 @@ object Monoid {
     }
   }
 
-  def productMonoid[A,B](A: Monoid[A], B: Monoid[B]): Monoid[(A, B)] =
-    ???
+  def productMonoid[A,B](A: Monoid[A], B: Monoid[B]): Monoid[(A, B)] = new Monoid[(A, B)] {
+    override def op(a1: (A, B), a2: (A, B)): (A, B) = (A.op(a1._1, a2._1), B.op(a1._2, a2._2))
+    override def zero: (A, B) = (A.zero, B.zero)
+  }
 
   def functionMonoid[A,B](B: Monoid[B]): Monoid[A => B] =
     ???
@@ -211,10 +213,10 @@ object TreeFoldable extends Foldable[Tree] {
 
 object OptionFoldable extends Foldable[Option] {
   override def foldMap[A, B](as: Option[A])(f: A => B)(mb: Monoid[B]): B =
-    ???
+    as.map(f).getOrElse(mb.zero)
   override def foldLeft[A, B](as: Option[A])(z: B)(f: (B, A) => B) =
-    ???
+    as.foldLeft(z)(f)
   override def foldRight[A, B](as: Option[A])(z: B)(f: (A, B) => B) =
-    ???
+    as.foldRight(z)(f)
 }
 

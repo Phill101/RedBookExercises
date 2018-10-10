@@ -126,6 +126,8 @@ object Gen {
 
   def boolean: Gen[Boolean] = Gen(RNG.nonNegativeLessThan(2).map(i => if (i > 0) true else false))
   def int: Gen[Int] = Gen(RNG.int)
+  def char: Gen[Char] = Gen(RNG.nonNegativeLessThan(0xD800 - 1).map(x => (x + 1).toChar))
+  def string: Gen[String] = Gen.listOfN(choose(0, 25), char).map(_.mkString)
 
   def listOf[A](g: Gen[A]): Gen[List[A]] = listOfN(choose(0, 10), g)
   def nonEmptyListOf[A](g: Gen[A]): Gen[List[A]] = listOfN(choose(1, 10), g)
@@ -137,6 +139,12 @@ object Gen {
     Gen(for {
       f <- g.sample
       s <- g.sample
+    } yield (f, s))
+
+  def tuple2[A, B](g1: Gen[A], g2: Gen[B]): Gen[(A, B)] =
+    Gen(for {
+      f <- g1.sample
+      s <- g2.sample
     } yield (f, s))
 
   def tuple3[A](g: Gen[A]): Gen[(A, A, A)] =
@@ -158,7 +166,7 @@ object Gen {
 }
 
 case class Gen[+A](sample: State[RNG, A]) {
-  def map[B](f: A => B): Gen[B] = ???
+  def map[B](f: A => B): Gen[B] = this.copy(sample.map(f))
   def flatMap[B](f: A => Gen[B]): Gen[B] = Gen(sample.flatMap(f.andThen(_.sample)))
   def unsized: SGen[A] = SGen(_ => this)
 }

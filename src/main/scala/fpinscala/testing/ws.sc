@@ -3,7 +3,7 @@ import java.util.concurrent.{ExecutorService, Executors}
 import fpinscala.state.RNG.Simple
 import fpinscala.testing.Gen
 
-//val s = Simple(42)
+val s = Simple(42)
 //
 //Gen.choose(5, 15).sample.run(s)
 //
@@ -22,6 +22,9 @@ import fpinscala.testing.Gen
 
 import fpinscala.testing.Prop._
 import fpinscala.testing.Gen._
+
+char.sample.run(s)
+string.sample.run(s)
 
 //val smallInt = Gen.choose(-10, 10)
 //val maxProp = forAll(listOf(smallInt)) { ns =>
@@ -49,8 +52,8 @@ import fpinscala.testing.Gen._
 //run(sortProp)
 
 
-import fpinscala.parallelism.Par
-
-val ES: ExecutorService = Executors.newCachedThreadPool
-val p1 = check(Par.map(Par.unit(1))(_ + 1)(ES).get == Par.unit(2)(ES).get)
-run(p1)
+//import fpinscala.parallelism.Par
+//
+//val ES: ExecutorService = Executors.newCachedThreadPool
+//val p1 = check(Par.map(Par.unit(1))(_ + 1)(ES).get == Par.unit(2)(ES).get)
+//run(p1)
