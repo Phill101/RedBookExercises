@@ -180,12 +180,33 @@ case class Leaf[A](value: A) extends Tree[A]
 case class Branch[A](left: Tree[A], right: Tree[A]) extends Tree[A]
 
 object TreeFoldable extends Foldable[Tree] {
-  override def foldMap[A, B](as: Tree[A])(f: A => B)(mb: Monoid[B]): B =
-    ???
-  override def foldLeft[A, B](as: Tree[A])(z: B)(f: (B, A) => B) =
-    ???
-  override def foldRight[A, B](as: Tree[A])(z: B)(f: (A, B) => B) =
-    ???
+  override def foldMap[A, B](as: Tree[A])(f: A => B)(mb: Monoid[B]): B = as match {
+    case Leaf(n) => f(n)
+    case Branch(l, r) => mb.op(foldMap(l)(f)(mb), foldMap(r)(f)(mb))
+  }
+
+  override def foldLeft[A, B](as: Tree[A])(z: B)(f: (B, A) => B) = {
+    def impl(toVisit: List[Tree[A]], acc: B): B = {
+      if (toVisit.isEmpty) acc
+      else toVisit.head match {
+        case Leaf(v) => impl(toVisit.tail, f(acc, v))
+        case Branch(l, r) => impl(l :: r :: toVisit.tail, acc)
+      }
+    }
+
+    impl(as :: Nil, z)
+  }
+
+  override def foldRight[A, B](as: Tree[A])(z: B)(f: (A, B) => B) = {
+    def impl(toVisit: List[Tree[A]], acc: B): B =
+      if (toVisit.isEmpty) acc
+      else toVisit.head match {
+        case Leaf(v) => impl(toVisit.tail, f(v, acc))
+        case Branch(l, r) => impl(r :: l :: toVisit.tail, acc)
+      }
+
+    impl(as :: Nil, z)
+  }
 }
 
 object OptionFoldable extends Foldable[Option] {
