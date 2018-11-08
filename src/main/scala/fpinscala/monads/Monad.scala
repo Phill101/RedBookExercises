@@ -5,7 +5,8 @@ import fpinscala.testing._
 import fpinscala.parallelism._
 import fpinscala.state._
 import fpinscala.parallelism.Par._
-import language.higherKinds
+
+import language.{higherKinds, reflectiveCalls}
 
 
 trait Functor[F[_]] {
@@ -100,14 +101,26 @@ object Monad {
     override def flatMap[A, B](ma: List[A])(f: A => List[B]): List[B] = ma.flatMap(f)
   }
 
-  def stateMonad[S] = ???
+  def stateMonad[S] = new Monad[({type f[x] = State[S, x]})#f] {
+    override def unit[A](a: => A) = State(s => (a, s))
+    override def flatMap[A, B](ma: State[S, A])(f: A => State[S, B]): State[S, B] = ma.flatMap(f)
+  }
+
+  def eitherMonad[S] = new Monad[({type f[x] = Either[S, x]})#f] {
+    override def unit[A](a: => A) = Right(a)
+    override def flatMap[A, B](ma: Either[S, A])(f: A => Either[S, B]) = ma.flatMap(f)
+  }
 
   val idMonad: Monad[Id] = new Monad[Id] {
     override def unit[A](a: => A): Id[A] = Id(a)
     override def flatMap[A, B](ma: Id[A])(f: A => Id[B]): Id[B] = ma.flatMap(f)
   }
 
-  def readerMonad[R] = ???
+  def readerMonad[R] = new Monad[({type f[x] = Reader[R,x]})#f] {
+    def unit[A](a: => A): Reader[R,A] = Reader(_ => a)
+    override def flatMap[A,B](st: Reader[R,A])(f: A => Reader[R,B]): Reader[R,B] =
+      Reader(r => f(st.run(r)).run(r))
+  }
 }
 
 case class Id[A](value: A) {
@@ -116,9 +129,6 @@ case class Id[A](value: A) {
 }
 
 object Reader {
-  def readerMonad[R] = new Monad[({type f[x] = Reader[R,x]})#f] {
-    def unit[A](a: => A): Reader[R,A] = ???
-    override def flatMap[A,B](st: Reader[R,A])(f: A => Reader[R,B]): Reader[R,B] = ???
-  }
+
 }
 
