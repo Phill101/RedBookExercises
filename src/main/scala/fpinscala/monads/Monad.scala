@@ -106,11 +106,6 @@ object Monad {
     override def flatMap[A, B](ma: State[S, A])(f: A => State[S, B]): State[S, B] = ma.flatMap(f)
   }
 
-  def eitherMonad[S] = new Monad[({type f[x] = Either[S, x]})#f] {
-    override def unit[A](a: => A) = Right(a)
-    override def flatMap[A, B](ma: Either[S, A])(f: A => Either[S, B]) = ma.flatMap(f)
-  }
-
   val idMonad: Monad[Id] = new Monad[Id] {
     override def unit[A](a: => A): Id[A] = Id(a)
     override def flatMap[A, B](ma: Id[A])(f: A => Id[B]): Id[B] = ma.flatMap(f)
