@@ -91,8 +91,14 @@ trait Monad[F[_]] extends Applicative[F] {
   def compose[A,B,C](f: A => F[B], g: B => F[C]): A => F[C] =
     a => flatMap(f(a))(g)
 
+  override def map[A,B](m: F[A])(f: A => B): F[B] =
+    flatMap(m)(a => unit(f(a)))
+
+  override def map2[A,B,C](ma: F[A], mb: F[B])(f: (A, B) => C): F[C] =
+    flatMap(ma)(a => map(mb)(b => f(a, b)))
+
   override def apply[A,B](mf: F[A => B])(ma: F[A]): F[B] =
-    flatMap(mf)(f => map(ma)(a => f(a)))
+    flatMap(mf)(f => map(ma)(f))
 }
 
 object Monad {
@@ -192,9 +198,11 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
   def zipWithIndex[A](fa: F[A]): F[(A, Int)] =
     mapAccum(fa, 0)((a, s) => ((a, s), s + 1))._1
 
-  def reverse[A](fa: F[A]): F[A] = ???
+  def reverse[A](fa: F[A]): F[A] =
+    mapAccum(fa, toList(fa))((_, s) => (s.head, s.tail))._1
 
-  override def foldLeft[A,B](fa: F[A])(z: B)(f: (B, A) => B): B = ???
+  override def foldLeft[A,B](fa: F[A])(z: B)(f: (B, A) => B): B =
+    mapAccum(fa, z)((a, s) => ((), f(s, a)))._2
 
   def fuse[G[_],H[_],A,B](fa: F[A])(f: A => G[B], g: A => H[B])
                          (implicit G: Applicative[G], H: Applicative[H]): (G[F[B]], H[F[B]]) = ???

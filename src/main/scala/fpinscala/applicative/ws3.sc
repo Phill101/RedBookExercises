@@ -1,4 +1,4 @@
-import fpinscala.applicative.{Applicative, Traverse}
+import fpinscala.applicative.{Applicative, Traverse, Tree}
 
 import scala.language.higherKinds
 
@@ -33,3 +33,17 @@ val listApplicative = new Applicative[List] {
 
 Traverse.listTraverse.sequence(List(Option(1), Option(2)))(optApplicative)
 Traverse.optionTraverse.sequence(Option(List(1)))(listApplicative)
+
+
+Traverse.listTraverse.reverse(List(1, 2, 3))
+Traverse.optionTraverse.reverse(Option(1))
+
+val tree = Tree(1,
+  List(
+    Tree(2, Nil),
+    Tree(3, Nil),
+    Tree(4, Nil)
+  ))
+Traverse.treeTraverse.reverse(tree)
+
+Traverse.listTraverse.foldLeft(List(1, 2, 3, 4))(-100)(_ + _)
