@@ -113,8 +113,19 @@ object Monad {
       st flatMap f
   }
 
-  def composeM[F[_],N[_]](implicit F: Monad[F], N: Monad[N], T: Traverse[N]):
-    Monad[({type f[x] = F[N[x]]})#f] = ???
+  def composeM[F[_],N[_]](implicit F: Monad[F], N: Monad[N], T: Traverse[N]): Monad[({type f[x] = F[N[x]]})#f] = new Monad[({type f[x] = F[N[x]]})#f] {
+    override def unit[A](a: => A): F[N[A]] = F.unit(N.unit(a))
+
+    override def map[A, B](m: F[N[A]])(f: A => B): F[N[B]] =
+      F.map(m)(na => N.map(na)(f))
+
+    override def join[A](mma: F[N[F[N[A]]]]): F[N[A]] = {
+      val q: F[F[N[N[A]]]] = F.map(mma)(nfna => T.sequence(nfna))
+      val w: F[N[N[A]]] = F.join(q)
+      val r: F[N[A]] = F.map(w)(nna => N.join(nna))
+      r
+    }
+  }
 }
 
 sealed trait Validation[+E, +A]
@@ -160,7 +171,7 @@ object Applicative {
     }
 }
 
-trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
+trait Traverse[F[_]] extends Functor[F] with Foldable[F] { self =>
   def traverse[G[_]:Applicative,A,B](fa: F[A])(f: A => G[B]): G[F[B]] =
     sequence(map(fa)(f))
   def sequence[G[_]:Applicative,A](fma: F[G[A]]): G[F[A]] =
@@ -205,9 +216,15 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
     mapAccum(fa, z)((a, s) => ((), f(s, a)))._2
 
   def fuse[G[_],H[_],A,B](fa: F[A])(f: A => G[B], g: A => H[B])
-                         (implicit G: Applicative[G], H: Applicative[H]): (G[F[B]], H[F[B]]) = ???
+                         (implicit G: Applicative[G], H: Applicative[H]): (G[F[B]], H[F[B]]) = {
+    traverse[({type f[x] = (G[x], H[x])})#f, A, B](fa)(a => f(a) -> g(a))(G product H)
+  }
 
-  def compose[G[_]](implicit G: Traverse[G]): Traverse[({type f[x] = F[G[x]]})#f] = ???
+  def compose[G[_]](implicit G: Traverse[G]): Traverse[({type f[x] = F[G[x]]})#f] =
+    new Traverse[({type f[x] = F[G[x]]})#f] {
+      override def traverse[M[_] : Applicative, A, B](fa: F[G[A]])(f: A => M[B]) =
+        self.traverse(fa)((ga: G[A]) => G.traverse(ga)(f))
+    }
 }
 
 object Traverse {
