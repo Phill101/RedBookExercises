@@ -915,7 +915,7 @@ object GeneralizedStreamTransducers {
      * convert the lines of a file from fahrenheit to celsius.
      */
 
-    import fpinscala.iomonad.IO0.fahrenheitToCelsius
+    import fpinscala.iomonad.io0.IO0.fahrenheitToCelsius
 
     val converter: Process[IO,Unit] =
       lines("fahrenheit.txt").
